@@ -1,0 +1,364 @@
+ <!DOCTYPE html>
+<html>
+<head>
+  <title>Recipe Finder 🍲</title>
+
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      color: #333;
+    }
+
+    /* Floating background */
+    .floating-bg {
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      overflow: hidden;
+    }
+
+    .floating-bg img {
+      position: absolute;
+      width: 120px;
+      border-radius: 15px;
+      opacity: 0.25;
+      animation: float 20s linear infinite;
+    }
+
+    @keyframes float {
+      0% { transform: translateY(100vh) rotate(0); }
+      100% { transform: translateY(-120vh) rotate(360deg); }
+    }
+
+    /* Navbar */
+    header {
+      display: flex;
+      justify-content: space-between;
+      padding: 15px 30px;
+      background: rgba(255,77,77,0.8);
+      color: white;
+      backdrop-filter: blur(10px);
+    }
+
+    /* Buttons */
+    button {
+      background: linear-gradient(45deg, #ff4d4d, #ff7a7a);
+      border: none;
+      padding: 10px;
+      border-radius: 20px;
+      color: white;
+      cursor: pointer;
+      margin: 5px;
+    }
+
+    button:hover {
+      transform: scale(1.1);
+    }
+
+    /* Search */
+    .search-box {
+      text-align: center;
+      margin: 30px;
+    }
+
+    input {
+      padding: 12px;
+      width: 250px;
+      border-radius: 20px;
+      border: none;
+    }
+
+    /* Categories */
+    #categories {
+      text-align: center;
+    }
+
+    /* Cards */
+    #results {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px,1fr));
+      gap: 20px;
+      padding: 20px;
+    }
+
+    .card {
+      background: rgba(255,255,255,0.3);
+      backdrop-filter: blur(10px);
+      border-radius: 15px;
+      overflow: hidden;
+      transition: 0.3s;
+    }
+
+    .card:hover {
+      transform: translateY(-10px);
+    }
+
+    .card img {
+      width: 100%;
+    }
+
+    /* Details */
+     #details {
+  background: rgba(255,255,255,0.9);
+  backdrop-filter: blur(10px);
+  margin: 20px;
+  padding: 20px;
+  border-radius: 15px;
+  line-height: 1.6;
+}
+
+    /* Dark mode */
+    .dark {
+      background: #0f172a;
+      color: white;
+    }
+
+    .dark .card {
+      background: rgba(30,41,59,0.5);
+    }
+
+    .dark input {
+      background: #1e293b;
+      color: white;
+    }
+
+    #details {
+  background: rgba(255,255,255,0.9);
+  backdrop-filter: blur(10px);
+  margin: 20px;
+  padding: 20px;
+  border-radius: 15px;
+  line-height: 1.6;
+}
+
+#details ul, #details ol {
+  text-align: left;
+  max-width: 600px;
+  margin: auto;
+}
+
+#details img {
+  border-radius: 10px;
+  margin: 10px 0;
+}
+
+.dark #details {
+  background: rgba(30, 41, 59, 0.9);
+  color: #f1f5f9;
+}
+
+.dark #details h2,
+.dark #details h3 {
+  color: #ffffff;
+}
+
+.dark #details li {
+  color: #e2e8f0;
+}
+
+.dark #details p {
+  color: #cbd5f5;
+}
+
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 10;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.6);
+}
+
+.modal-content {
+  background: white;
+  margin: 5% auto;
+  padding: 20px;
+  width: 80%;
+  max-height: 80vh;
+  overflow-y: auto;
+  border-radius: 15px;
+}
+
+.close {
+  float: right;
+  font-size: 25px;
+  cursor: pointer;
+}
+
+.dark .modal-content {
+  background: #1e293b;
+  color: white;
+}
+
+  </style>
+</head>
+
+<body>
+
+<!-- Floating images -->
+<div class="floating-bg">
+  <img src="https://source.unsplash.com/200x200/?pizza">
+  <img src="https://source.unsplash.com/200x200/?burger">
+  <img src="https://source.unsplash.com/200x200/?cake">
+  <img src="https://source.unsplash.com/200x200/?pasta">
+</div>
+
+<header>
+  <span>🍲 Recipe Finder</span>
+  <div>
+    <button onclick="toggleDark()">🌙</button>
+    <button onclick="window.location.href='favorites.html'">❤️</button>
+  </div>
+</header>
+
+<div class="search-box">
+  <input id="search" placeholder="Search recipes...">
+  <button onclick="searchRecipe()">Search</button>
+  <button onclick="getRandom()">Random</button>
+</div>
+
+<div id="categories"></div>
+<div id="results"></div>
+ <div id="detailsModal" class="modal">
+  <div class="modal-content">
+    <span onclick="closeModal()" class="close">&times;</span>
+    <div id="details"></div>
+  </div>
+</div>
+
+<script>
+let favorites = JSON.parse(localStorage.getItem("favorites")) || [];
+
+// load
+window.onload = () => {
+  const theme = localStorage.getItem("theme");
+  if (theme === "dark") document.body.classList.add("dark");
+
+  loadDefault();
+  loadCategories();
+};
+
+// dark mode
+function toggleDark() {
+  document.body.classList.toggle("dark");
+  localStorage.setItem("theme",
+    document.body.classList.contains("dark") ? "dark" : "light"
+  );
+}
+
+// default recipes
+async function loadDefault() {
+  const res = await fetch("https://www.themealdb.com/api/json/v1/1/search.php?s=");
+  const data = await res.json();
+  displayRecipes(data.meals);
+}
+
+// search
+async function searchRecipe() {
+  const q = document.getElementById("search").value;
+  const res = await fetch(`http://localhost:3000/search?q=${q}`);
+  const data = await res.json();
+  displayRecipes(data.meals);
+}
+
+// display
+function displayRecipes(meals) {
+  const results = document.getElementById("results");
+  results.innerHTML = "";
+
+  if (!meals) return results.innerHTML = "No recipes 😢";
+
+  meals.forEach(meal => {
+    results.innerHTML += `
+      <div class="card">
+        <img src="${meal.strMealThumb}" onclick="showDetails('${meal.idMeal}')">
+        <h3 style="text-align:center">${meal.strMeal}</h3>
+        <button onclick="saveFavorite(event,'${meal.idMeal}','${meal.strMeal}','${meal.strMealThumb}')">❤️ Save</button>
+      </div>
+    `;
+  });
+}
+
+// categories
+async function loadCategories() {
+  const res = await fetch("https://www.themealdb.com/api/json/v1/1/categories.php");
+  const data = await res.json();
+
+  data.categories.forEach(cat => {
+    document.getElementById("categories").innerHTML +=
+      `<button onclick="filterCategory('${cat.strCategory}')">${cat.strCategory}</button>`;
+  });
+}
+
+// filter
+async function filterCategory(cat) {
+  const res = await fetch(`https://www.themealdb.com/api/json/v1/1/filter.php?c=${cat}`);
+  const data = await res.json();
+  displayRecipes(data.meals);
+}
+
+// details
+ async function showDetails(id) {
+  const res = await fetch(`https://www.themealdb.com/api/json/v1/1/lookup.php?i=${id}`);
+  const meal = (await res.json()).meals[0];
+
+  let ingredients = "";
+  for (let i = 1; i <= 20; i++) {
+    if (meal[`strIngredient${i}`]) {
+      ingredients += `<li>${meal[`strIngredient${i}`]} - ${meal[`strMeasure${i}`]}</li>`;
+    }
+  }
+
+  const steps = meal.strInstructions
+    .split('. ')
+    .map(step => `<li>${step}</li>`)
+    .join('');
+
+   document.getElementById("detailsModal").style.display = "block";
+
+  document.getElementById("details").innerHTML = `
+    <h2>${meal.strMeal}</h2>
+    <img src="${meal.strMealThumb}" width="300">
+
+    <h3>🥕 Ingredients</h3>
+    <ul>${ingredients}</ul>
+
+    <h3>👨‍🍳 Instructions</h3>
+    <ol>${steps}</ol>
+
+    ${
+      meal.strYoutube
+        ? `<h3>🎥 Video</h3>
+           <iframe width="300" src="https://www.youtube.com/embed/${meal.strYoutube.split('v=')[1]}" frameborder="0"></iframe>`
+        : ""
+    }
+  `;
+}
+
+// favorites
+function saveFavorite(e,id,name,img) {
+  e.stopPropagation();
+  if (!favorites.find(f=>f.id===id)) {
+    favorites.push({id,name,img});
+    localStorage.setItem("favorites", JSON.stringify(favorites));
+    alert("Saved ❤️");
+  }
+}
+
+// random
+async function getRandom() {
+  const res = await fetch("https://www.themealdb.com/api/json/v1/1/random.php");
+  const data = await res.json();
+  displayRecipes(data.meals);
+}
+function closeModal() {
+  document.getElementById("detailsModal").style.display = "none";
+}
+</script>
+
+</body>
+</html>

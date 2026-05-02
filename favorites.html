@@ -1,0 +1,24 @@
+ <!DOCTYPE html>
+<html>
+<head>
+  <title>Favorites</title>
+</head>
+<body>
+<h1>❤️ Favorites</h1>
+<div id="fav"></div>
+
+<script>
+const fav = JSON.parse(localStorage.getItem("favorites")) || [];
+
+fav.forEach(f => {
+  document.getElementById("fav").innerHTML += `
+    <div>
+      <img src="${f.img}" width="200">
+      <h3>${f.name}</h3>
+    </div>
+  `;
+});
+</script>
+
+</body>
+</html>
